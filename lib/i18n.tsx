@@ -385,12 +385,13 @@ export function useI18n() {
 export function LanguageSwitcher() {
   const { locale, setLocale } = useI18n();
   return (
-    <button
-      onClick={() => setLocale(locale === "zh" ? "en" : "zh")}
-      className="px-3 py-1.5 rounded-lg bg-[var(--card)] border border-[var(--border)] text-xs font-medium hover:border-[var(--accent)] transition cursor-pointer"
-      title={locale === "zh" ? "Switch to English" : "切换到中文"}
+    <select
+      value={locale}
+      onChange={(e) => setLocale(e.target.value as Locale)}
+      className="px-3 py-1.5 rounded-lg bg-[var(--card)] border border-[var(--border)] text-xs font-medium hover:border-[var(--accent)] transition cursor-pointer text-[var(--text)]"
     >
-      {locale === "zh" ? "EN" : "中文"}
-    </button>
+      <option value="zh">中文</option>
+      <option value="en">English</option>
+    </select>
   );
 }
