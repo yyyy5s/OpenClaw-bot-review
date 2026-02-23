@@ -507,7 +507,7 @@ export default function Home() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            🤖 {t("nav.agents")}
+            🤖 {t("home.pageTitle")}
           </h1>
           <p className="text-[var(--text-muted)] text-sm mt-1">
             {t("models.totalPrefix")} {data.agents.length} {t("home.agentCount")} · {t("home.defaultModel")}: {data.defaults.model}

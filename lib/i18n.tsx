@@ -12,7 +12,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // nav sidebar
     "nav.overview": "总览",
-    "nav.agents": "OpenClaw 机器人",
+    "nav.agents": "机器人",
     "nav.models": "模型列表",
     "nav.monitor": "监控",
     "nav.sessions": "会话列表",
@@ -40,6 +40,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // home page
     "home.title": "🐾 OpenClaw Bot Dashboard",
     "home.agentCount": "个机器人",
+    "home.pageTitle": "OpenClaw 机器人",
     "home.defaultModel": "默认模型",
     "home.viewModels": "查看模型列表 →",
     "home.skillMgmt": "🧩 技能管理",
@@ -177,7 +178,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // nav sidebar
     "nav.overview": "Overview",
-    "nav.agents": "OpenClaw Bots",
+    "nav.agents": "Bots",
     "nav.models": "Models",
     "nav.monitor": "Monitor",
     "nav.sessions": "Sessions",
@@ -205,6 +206,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // home page
     "home.title": "🐾 OpenClaw Bot Dashboard",
     "home.agentCount": "bots",
+    "home.pageTitle": "OpenClaw Bots",
     "home.defaultModel": "Default model",
     "home.viewModels": "View Models →",
     "home.skillMgmt": "🧩 Skills",
