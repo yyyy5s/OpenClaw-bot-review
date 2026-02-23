@@ -12,7 +12,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // nav sidebar
     "nav.overview": "总览",
-    "nav.agents": "机器人",
+    "nav.agents": "OpenClaw 机器人",
     "nav.models": "模型列表",
     "nav.monitor": "监控",
     "nav.sessions": "会话列表",
@@ -177,7 +177,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // nav sidebar
     "nav.overview": "Overview",
-    "nav.agents": "Bots",
+    "nav.agents": "OpenClaw Bots",
     "nav.models": "Models",
     "nav.monitor": "Monitor",
     "nav.sessions": "Sessions",
