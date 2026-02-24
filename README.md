@@ -15,7 +15,7 @@ When running multiple OpenClaw agents across different platforms (Feishu, Discor
 
 ## Preview
 
-![Dashboard Preview](docs/dashboard-preview.png)
+![Dashboard Preview](docs/bot_dashboard.png)
 
 ![Models Preview](docs/models-preview.png)
 
