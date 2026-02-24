@@ -18,6 +18,7 @@ import type { TileType as TileTypeVal, FloorColor, OfficeLayout } from '@/lib/pi
 import { getCatalogEntry, isRotatable } from '@/lib/pixel-office/layout/furnitureCatalog'
 import { createDefaultLayout, serializeLayout } from '@/lib/pixel-office/layout/layoutSerializer'
 import { playDoneSound, unlockAudio, setSoundEnabled, isSoundEnabled } from '@/lib/pixel-office/notificationSound'
+import { loadCharacterPNGs, loadWallPNG } from '@/lib/pixel-office/sprites/pngLoader'
 import { useI18n } from '@/lib/i18n'
 import { EditorToolbar } from './components/EditorToolbar'
 import { EditActionBar } from './components/EditActionBar'
@@ -59,7 +60,7 @@ export default function PixelOfficePage() {
   const editorRef = useRef<EditorState>(new EditorState())
   const agentIdMapRef = useRef<Map<string, number>>(new Map())
   const nextIdRef = useRef<{ current: number }>({ current: 1 })
-  const zoomRef = useRef<number>(4)
+  const zoomRef = useRef<number>(0) // 0 = auto-fit on first render
   const panRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const savedLayoutRef = useRef<OfficeLayout | null>(null)
   const animationFrameIdRef = useRef<number | null>(null)
@@ -89,6 +90,7 @@ export default function PixelOfficePage() {
       } catch {
         officeRef.current = new OfficeState()
       }
+      await Promise.all([loadCharacterPNGs(), loadWallPNG()])
       setOfficeReady(true)
     }
     loadLayout()
@@ -123,6 +125,14 @@ export default function PixelOfficePage() {
 
       const width = container.clientWidth
       const height = container.clientHeight
+
+      // Auto-fit zoom on first render
+      if (zoomRef.current === 0) {
+        const mapW = office.layout.cols * TILE_SIZE
+        const mapH = office.layout.rows * TILE_SIZE
+        const fitZoom = Math.round(Math.min(width / mapW, height / mapH))
+        zoomRef.current = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom))
+      }
       const dpr = window.devicePixelRatio || 1
       canvas.width = width * dpr
       canvas.height = height * dpr

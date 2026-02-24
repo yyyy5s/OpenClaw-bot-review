@@ -204,13 +204,14 @@ export function getSeatTiles(seats: Map<string, Seat>): Set<string> {
   return tiles
 }
 
-/** Default floor colors for the two rooms */
+/** Default floor colors */
 const DEFAULT_LEFT_ROOM_COLOR: FloorColor = { h: 35, s: 30, b: 15, c: 0 }  // warm beige
 const DEFAULT_RIGHT_ROOM_COLOR: FloorColor = { h: 25, s: 45, b: 5, c: 10 }  // warm brown
 const DEFAULT_CARPET_COLOR: FloorColor = { h: 280, s: 40, b: -5, c: 0 }     // purple
 const DEFAULT_DOORWAY_COLOR: FloorColor = { h: 35, s: 25, b: 10, c: 0 }     // tan
+const DEFAULT_LOUNGE_COLOR: FloorColor = { h: 200, s: 30, b: 10, c: 0 }     // cool blue
 
-/** Create the default office layout matching the current hardcoded office */
+/** Create the default office layout — 21×17 multi-room office */
 export function createDefaultLayout(): OfficeLayout {
   const W = TileType.WALL
   const F1 = TileType.FLOOR_1
@@ -218,14 +219,21 @@ export function createDefaultLayout(): OfficeLayout {
   const F3 = TileType.FLOOR_3
   const F4 = TileType.FLOOR_4
 
+  // Build tile grid row by row
+  // Layout: top work rooms (rows 0-9), corridor (row 10), bottom lounge/meeting (rows 11-16)
+  const cols = DEFAULT_COLS  // 21
+  const rows = DEFAULT_ROWS  // 17
   const tiles: TileTypeVal[] = []
   const tileColors: Array<FloorColor | null> = []
 
-  for (let r = 0; r < DEFAULT_ROWS; r++) {
-    for (let c = 0; c < DEFAULT_COLS; c++) {
-      if (r === 0 || r === DEFAULT_ROWS - 1) { tiles.push(W); tileColors.push(null); continue }
-      if (c === 0 || c === DEFAULT_COLS - 1) { tiles.push(W); tileColors.push(null); continue }
-      if (c === 10) {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      // Outer walls
+      if (r === 0 || r === rows - 1 || c === 0 || c === cols - 1) {
+        tiles.push(W); tileColors.push(null); continue
+      }
+      // Divider wall between left and right rooms (col 10), with doorway
+      if (c === 10 && r <= 9) {
         if (r >= 4 && r <= 6) {
           tiles.push(F4); tileColors.push(DEFAULT_DOORWAY_COLOR)
         } else {
@@ -233,38 +241,88 @@ export function createDefaultLayout(): OfficeLayout {
         }
         continue
       }
+      // Horizontal wall between top rooms and bottom area (row 10), with two doorways
+      if (r === 10) {
+        if ((c >= 4 && c <= 6) || (c >= 14 && c <= 16)) {
+          tiles.push(F4); tileColors.push(DEFAULT_DOORWAY_COLOR)
+        } else {
+          tiles.push(W); tileColors.push(null)
+        }
+        continue
+      }
+      // Carpet area in right room (meeting corner)
       if (c >= 15 && c <= 18 && r >= 7 && r <= 9) {
         tiles.push(F3); tileColors.push(DEFAULT_CARPET_COLOR); continue
       }
-      if (c < 10) {
-        tiles.push(F1); tileColors.push(DEFAULT_LEFT_ROOM_COLOR)
+      // Top rooms
+      if (r < 10) {
+        if (c < 10) {
+          tiles.push(F1); tileColors.push(DEFAULT_LEFT_ROOM_COLOR)
+        } else {
+          tiles.push(F2); tileColors.push(DEFAULT_RIGHT_ROOM_COLOR)
+        }
+        continue
+      }
+      // Bottom lounge area
+      if (c >= 8 && c <= 12 && r >= 13 && r <= 15) {
+        tiles.push(F3); tileColors.push(DEFAULT_CARPET_COLOR)
       } else {
-        tiles.push(F2); tileColors.push(DEFAULT_RIGHT_ROOM_COLOR)
+        tiles.push(F1); tileColors.push(DEFAULT_LOUNGE_COLOR)
       }
     }
   }
 
   const furniture: PlacedFurniture[] = [
-    { uid: 'desk-left', type: FurnitureType.DESK, col: 4, row: 3 },
-    { uid: 'desk-right', type: FurnitureType.DESK, col: 13, row: 3 },
-    { uid: 'bookshelf-1', type: FurnitureType.BOOKSHELF, col: 1, row: 5 },
-    { uid: 'plant-left', type: FurnitureType.PLANT, col: 1, row: 1 },
-    { uid: 'cooler-1', type: FurnitureType.COOLER, col: 17, row: 7 },
-    { uid: 'plant-right', type: FurnitureType.PLANT, col: 18, row: 1 },
-    { uid: 'whiteboard-1', type: FurnitureType.WHITEBOARD, col: 15, row: 0 },
-    // Left desk chairs
-    { uid: 'chair-l-top', type: FurnitureType.CHAIR, col: 4, row: 2 },
-    { uid: 'chair-l-bottom', type: FurnitureType.CHAIR, col: 5, row: 5 },
-    { uid: 'chair-l-left', type: FurnitureType.CHAIR, col: 3, row: 4 },
-    { uid: 'chair-l-right', type: FurnitureType.CHAIR, col: 6, row: 3 },
-    // Right desk chairs
-    { uid: 'chair-r-top', type: FurnitureType.CHAIR, col: 13, row: 2 },
-    { uid: 'chair-r-bottom', type: FurnitureType.CHAIR, col: 14, row: 5 },
-    { uid: 'chair-r-left', type: FurnitureType.CHAIR, col: 12, row: 4 },
-    { uid: 'chair-r-right', type: FurnitureType.CHAIR, col: 15, row: 3 },
+    // ── Left work room ──
+    { uid: 'desk-l1', type: FurnitureType.DESK, col: 3, row: 3 },
+    { uid: 'chair-l1-top', type: FurnitureType.CHAIR, col: 3, row: 2 },
+    { uid: 'chair-l1-bottom', type: FurnitureType.CHAIR, col: 4, row: 5 },
+    { uid: 'chair-l1-left', type: FurnitureType.CHAIR, col: 2, row: 4 },
+    { uid: 'chair-l1-right', type: FurnitureType.CHAIR, col: 5, row: 3 },
+    { uid: 'desk-l2', type: FurnitureType.TABLE_WOOD_SM_VERTICAL, col: 8, row: 3 },
+    { uid: 'chair-l2', type: FurnitureType.CHAIR, col: 7, row: 3 },
+    { uid: 'chair-l2b', type: FurnitureType.CHAIR, col: 8, row: 5 },
+    { uid: 'bookshelf-l', type: FurnitureType.BOOKSHELF, col: 1, row: 5 },
+    { uid: 'plant-l1', type: FurnitureType.PLANT, col: 1, row: 1 },
+    { uid: 'plant-l2', type: FurnitureType.PLANT_SMALL, col: 9, row: 1 },
+    { uid: 'lamp-l', type: FurnitureType.LAMP, col: 1, row: 3 },
+    { uid: 'pc-l', type: FurnitureType.PC, col: 4, row: 3 },
+
+    // ── Right work room ──
+    { uid: 'desk-r1', type: FurnitureType.DESK, col: 13, row: 3 },
+    { uid: 'chair-r1-top', type: FurnitureType.CHAIR, col: 13, row: 2 },
+    { uid: 'chair-r1-bottom', type: FurnitureType.CHAIR, col: 14, row: 5 },
+    { uid: 'chair-r1-left', type: FurnitureType.CHAIR, col: 12, row: 4 },
+    { uid: 'chair-r1-right', type: FurnitureType.CHAIR, col: 15, row: 3 },
+    { uid: 'pc-r', type: FurnitureType.PC, col: 14, row: 3 },
+    { uid: 'plant-r1', type: FurnitureType.PLANT, col: 19, row: 1 },
+    { uid: 'whiteboard-r', type: FurnitureType.WHITEBOARD, col: 15, row: 0 },
+    { uid: 'library-r', type: FurnitureType.LIBRARY_GRAY_FULL, col: 18, row: 3 },
+    { uid: 'clock-r', type: FurnitureType.CLOCK, col: 11, row: 1 },
+    { uid: 'lamp-r', type: FurnitureType.LAMP, col: 19, row: 7 },
+
+    // ── Right room meeting corner ──
+    { uid: 'cooler-r', type: FurnitureType.COOLER, col: 18, row: 7 },
+    { uid: 'bench-r', type: FurnitureType.BENCH, col: 16, row: 9 },
+
+    // ── Bottom lounge / break area ──
+    { uid: 'fridge-b', type: FurnitureType.FRIDGE, col: 1, row: 11 },
+    { uid: 'water-cooler-b', type: FurnitureType.WATER_COOLER, col: 3, row: 11 },
+    { uid: 'deco-b', type: FurnitureType.DECO_3, col: 9, row: 13 },
+    { uid: 'plant-b1', type: FurnitureType.PLANT, col: 1, row: 15 },
+    { uid: 'plant-b2', type: FurnitureType.PLANT_SMALL, col: 19, row: 15 },
+    { uid: 'plant-b3', type: FurnitureType.PLANT_SMALL, col: 19, row: 11 },
+    { uid: 'painting-l1', type: FurnitureType.PAINTING_LARGE_1, col: 6, row: 10 },
+    { uid: 'painting-l2', type: FurnitureType.PAINTING_LARGE_2, col: 11, row: 10 },
+    { uid: 'painting-s1', type: FurnitureType.PAINTING_SMALL_1, col: 1, row: 13 },
+    { uid: 'painting-s2', type: FurnitureType.PAINTING_SMALL_2, col: 19, row: 13 },
+    { uid: 'bookshelf-b', type: FurnitureType.BOOKSHELF, col: 17, row: 11 },
+    { uid: 'bench-b1', type: FurnitureType.BENCH, col: 8, row: 15 },
+    { uid: 'bench-b2', type: FurnitureType.BENCH, col: 12, row: 15 },
+    { uid: 'lamp-b', type: FurnitureType.LAMP, col: 7, row: 13 },
   ]
 
-  return { version: 1, cols: DEFAULT_COLS, rows: DEFAULT_ROWS, tiles, tileColors, furniture }
+  return { version: 1, cols, rows, tiles, tileColors, furniture }
 }
 
 /** Serialize layout to JSON string */

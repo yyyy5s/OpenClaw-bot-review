@@ -1,7 +1,7 @@
 // Inlined constants (no longer imported from constants)
 export const TILE_SIZE = 16
-export const DEFAULT_COLS = 20
-export const DEFAULT_ROWS = 11
+export const DEFAULT_COLS = 21
+export const DEFAULT_ROWS = 17
 export const MAX_COLS = 64
 export const MAX_ROWS = 64
 export const MATRIX_EFFECT_DURATION = 0.3
@@ -89,6 +89,24 @@ export const FurnitureType = {
   CHAIR: 'chair',
   PC: 'pc',
   LAMP: 'lamp',
+  // Tileset — Desks
+  TABLE_WOOD_SM_VERTICAL: 'ts_table_wood_sm_vertical',
+  // Tileset — Chairs
+  CHAIR_CUSHION: 'ts_chair_cushion',
+  CHAIR_SPINNING: 'ts_chair_spinning',
+  BENCH: 'ts_bench',
+  // Tileset — Decor
+  WATER_COOLER: 'ts_water_cooler',
+  FRIDGE: 'ts_fridge',
+  DECO_3: 'ts_deco_3',
+  CLOCK: 'ts_clock',
+  LIBRARY_GRAY_FULL: 'ts_library_gray_full',
+  PLANT_SMALL: 'ts_plant_small',
+  PAINTING_LARGE_1: 'ts_painting_large_1',
+  PAINTING_LARGE_2: 'ts_painting_large_2',
+  PAINTING_SMALL_1: 'ts_painting_small_1',
+  PAINTING_SMALL_2: 'ts_painting_small_2',
+  PAINTING_SMALL_3: 'ts_painting_small_3',
 } as const
 export type FurnitureType = (typeof FurnitureType)[keyof typeof FurnitureType]
 
