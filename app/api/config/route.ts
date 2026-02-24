@@ -18,10 +18,11 @@ interface SessionStatus {
   todayAvgResponseMs: number;
   messageCount: number;
   weeklyResponseMs: number[]; // 过去7天每天的平均响应时间
+  weeklyTokens: number[]; // 过去7天每天的token用量
 }
 
 function getAgentSessionStatus(agentId: string): SessionStatus {
-  const result: SessionStatus = { lastActive: null, totalTokens: 0, contextTokens: 0, sessionCount: 0, todayAvgResponseMs: 0, messageCount: 0, weeklyResponseMs: [] };
+  const result: SessionStatus = { lastActive: null, totalTokens: 0, contextTokens: 0, sessionCount: 0, todayAvgResponseMs: 0, messageCount: 0, weeklyResponseMs: [], weeklyTokens: [] };
   const sessionsDir = path.join(OPENCLAW_DIR, `agents/${agentId}/sessions`);
   
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -33,7 +34,8 @@ function getAgentSessionStatus(agentId: string): SessionStatus {
     weekDates.push(d.toISOString().slice(0, 10));
   }
   const dailyResponseTimes: Record<string, number[]> = {};
-  for (const d of weekDates) dailyResponseTimes[d] = [];
+  const dailyTokens: Record<string, number> = {};
+  for (const d of weekDates) { dailyResponseTimes[d] = []; dailyTokens[d] = 0; }
   
   let files: string[];
   try {
@@ -67,6 +69,13 @@ function getAgentSessionStatus(agentId: string): SessionStatus {
           result.totalTokens += msg.usage.input || 0;
           result.totalTokens += msg.usage.output || 0;
           result.messageCount += 1;
+          // 按天统计 token
+          if (entry.timestamp) {
+            const msgDate = entry.timestamp.slice(0, 10);
+            if (dailyTokens[msgDate] !== undefined) {
+              dailyTokens[msgDate] += (msg.usage.input || 0) + (msg.usage.output || 0);
+            }
+          }
         }
         // 更新最近活跃时间
         if (entry.timestamp) {
@@ -108,6 +117,7 @@ function getAgentSessionStatus(agentId: string): SessionStatus {
     if (!times || times.length === 0) return 0;
     return Math.round(times.reduce((a, b) => a + b, 0) / times.length);
   });
+  result.weeklyTokens = weekDates.map(d => dailyTokens[d] || 0);
   return result;
 }
 

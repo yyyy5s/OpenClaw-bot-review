@@ -26,6 +26,7 @@ interface Agent {
     todayAvgResponseMs: number;
     messageCount: number;
     weeklyResponseMs: number[];
+    weeklyTokens: number[];
   };
 }
 
@@ -245,7 +246,7 @@ function ModelBadge({ model }: { model: string }) {
 }
 
 // 迷你曲线图 (sparkline)
-function MiniSparkline({ data, width = 120, height = 24 }: { data: number[]; width?: number; height?: number }) {
+function MiniSparkline({ data, width = 120, height = 24, color: fixedColor }: { data: number[]; width?: number; height?: number; color?: string }) {
   const hasData = data.some(v => v > 0);
   if (!hasData) return null;
 
@@ -257,7 +258,7 @@ function MiniSparkline({ data, width = 120, height = 24 }: { data: number[]; wid
     const prev = validValues[validValues.length - 2];
     trending = last > prev ? "up" : last < prev ? "down" : "flat";
   }
-  const color = trending === "up" ? "#f87171" : trending === "down" ? "#4ade80" : "#f59e0b";
+  const color = fixedColor || (trending === "up" ? "#f87171" : trending === "down" ? "#4ade80" : "#f59e0b");
 
   const max = Math.max(...data);
   const min = Math.min(...data.filter(v => v > 0), max);
@@ -424,7 +425,8 @@ function AgentCard({ agent, gatewayPort, gatewayToken, t, testResult, platformTe
             </div>
             <div className="flex items-center justify-between text-xs mt-1">
               <span className="text-[var(--text-muted)]">{t("agent.tokenUsage")}</span>
-              <span className="text-[var(--text)]">{formatTokens(agent.session.totalTokens)}</span>
+              {agent.session.weeklyTokens && <MiniSparkline data={agent.session.weeklyTokens} color="#4ade80" />}
+              <span className="text-[var(--text)] cursor-help" title={t("agent.totalTokenTip")}>{formatTokens(agent.session.totalTokens)}</span>
             </div>
             {agent.session.lastActive && (
               <div className="flex items-center justify-between text-xs mt-1">
