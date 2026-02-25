@@ -327,19 +327,19 @@ function AgentCard({ agent, gatewayPort, gatewayToken, t, testResult, platformTe
 
   return (
     <div
-      className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 hover:border-[var(--accent)] transition-colors"
+      className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-2.5 hover:border-[var(--accent)] transition-colors"
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-2xl">{agent.emoji}</span>
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-xl">{agent.emoji}</span>
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-[var(--text)]">{agent.name}</h3>
+          <h3 className="text-sm font-semibold text-[var(--text)]">{agent.name}</h3>
         </div>
         <AgentStatusBadge state={agentState} t={t} />
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <div>
-          <span className="text-xs text-[var(--text-muted)] block mb-0.5">Agent ID</span>
+          <span className="text-xs text-[var(--text-muted)] block">Agent ID</span>
           <div className="flex items-center gap-2">
             <a href={sessionUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-all hover:scale-105 hover:shadow-md bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 hover:bg-[var(--accent)]/40">
               {agent.id}
@@ -357,7 +357,7 @@ function AgentCard({ agent, gatewayPort, gatewayToken, t, testResult, platformTe
           </div>
         </div>
         <div>
-          <span className="text-xs text-[var(--text-muted)] block mb-0.5">{t("agent.model")}</span>
+          <span className="text-xs text-[var(--text-muted)] block">{t("agent.model")}</span>
           <div className="flex items-center gap-2">
             <ModelBadge model={agent.model} />
             {testResult === undefined ? (
@@ -373,7 +373,7 @@ function AgentCard({ agent, gatewayPort, gatewayToken, t, testResult, platformTe
         </div>
 
         <div>
-          <span className="text-xs text-[var(--text-muted)] block mb-0.5">{t("agent.platform")}</span>
+          <span className="text-xs text-[var(--text-muted)] block">{t("agent.platform")}</span>
           <div className="flex flex-col gap-1">
             {agent.platforms.map((p, i) => {
               const pKey = `${agent.id}:${p.name}`;
@@ -399,7 +399,7 @@ function AgentCard({ agent, gatewayPort, gatewayToken, t, testResult, platformTe
         </div>
 
         {agent.session && (
-          <div className="pt-1.5 mt-1.5 border-t border-[var(--border)]">
+          <div className="pt-1 mt-1 border-t border-[var(--border)]">
             <div className="flex items-center justify-between text-xs">
               <span className="text-[var(--text-muted)]">{t("agent.sessionCount")}</span>
               <div className="flex items-center gap-2">
@@ -667,14 +667,14 @@ export default function Home() {
   }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
+    <div className="p-3 max-w-6xl mx-auto">
       {/* 头部 */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between mb-2 gap-2">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
             🤖 {t("home.pageTitle")}
           </h1>
-          <p className="text-[var(--text-muted)] text-sm mt-1">
+          <p className="text-[var(--text-muted)] text-xs mt-0.5">
             {t("models.totalPrefix")} {data.agents.length} {t("home.agentCount")} · {t("home.defaultModel")}: {data.defaults.model}
           </p>
         </div>
@@ -732,12 +732,12 @@ export default function Home() {
       </div>
 
       {/* Gateway 状态 */}
-      <div className="mb-2">
+      <div className="mb-1.5">
         <GatewayStatus />
       </div>
 
       {/* 卡片墙 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {data.agents.map((agent) => (
           <AgentCard key={agent.id} agent={agent} gatewayPort={data.gateway?.port || 18789} gatewayToken={data.gateway?.token} t={t} testResult={testResults?.[agent.id]} platformTestResults={platformTestResults || undefined} sessionTestResult={sessionTestResults?.[agent.id]} agentState={agentStates[agent.id]} />
         ))}
