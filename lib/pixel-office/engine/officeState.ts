@@ -29,6 +29,40 @@ import {
 import type { InteractionPoint } from '../layout/layoutSerializer'
 import { getCatalogEntry, getOnStateType } from '../layout/furnitureCatalog'
 
+const CODE_SNIPPET_LIFETIME = 2.5 // seconds
+const CODE_SNIPPET_SPAWN_RATE = 0.6 // per second
+const CODE_SNIPPETS = [
+  // JS/TS
+  'if (...)', 'else {', 'for (...)', 'return', 'async', 'await', 'try {', 'catch', 'import',
+  'const x =', '=> {', '...args', '() => {}', '[...arr]', '{ ...obj }', '===', '?.', '??',
+  // Python
+  'def fn():', 'self.', 'yield', 'lambda x:', '@decorator', '**kwargs', 'except:', 'raise',
+  // LLM / AI
+  'prompt:', 'tokens++', 'model.chat()', 'agent.run()', 'stream()', 'tool_use', 'thinking...',
+  'chat.completions', 'role: "user"', 'max_tokens=', 'temperature=0.7', 'messages.append()',
+  'stop_reason', 'tool_calls[]', 'system_prompt', 'embedding()', 'rag.search()', 'context[]',
+  // Prompt snippets
+  'You are a...', 'Step by step', 'Let me think', 'In summary:', 'For example:',
+  'Please fix...', 'Refactor this', 'Add tests for', 'Explain why', 'Review this PR',
+  'Write a func', 'Debug this', 'Optimize the', 'How to impl', 'Best practice',
+  'Chain of thought', 'Few-shot:', 'Zero-shot:', 'As an expert', 'Given context:',
+  // Dev slang
+  'LGTM', 'RTFM', 'WIP', 'FIXME:', 'TODO:', 'HACK:', 'nit:', '// why?!',
+  'git push -f', 'rm -rf node_', 'npm i npm i', 'works on my💻', 'ship it!',
+  '¯\\_(ツ)_/¯', 'seg fault', 'null ptr', '404', 'stack overflow',
+  'it compiles!', 'no repro', 'wontfix', 'by design', 'tech debt++',
+  'rebase hell', 'merge conflict', '// magic num', 'sudo !!', 'chmod 777', 'rm -rf /*',
+  // 中文程序员黑话
+  '// 别删这行', '// 能跑就行', '// 不知道为啥能跑', '// 下次再改', '// 祖传代码',
+  '在吗？', '已读不回', '先这样吧', '回滚！', '又挂了',
+  '谁动了我的分支', '这不是bug', '需求又变了', '上线吧', '别碰那个文件',
+  '跑不起来啊', '重启试试', '这是谁写的屎山！！！', '谁删我代码了？？？tmd', '又500了', '删库跑路再说！！！',
+  // OpenClaw CLI
+  'openclaw status', 'openclaw gateway start', 'openclaw gateway restart',
+  'openclaw logs', 'openclaw doctor', 'openclaw config get',
+  'openclaw message send', 'openclaw skills', 'openclaw models', 'openclaw update',
+]
+
 export class OfficeState {
   layout: OfficeLayout
   tileMap: TileTypeVal[][]
@@ -699,6 +733,24 @@ export class OfficeState {
           ch.bubbleType = null
           ch.bubbleTimer = 0
         }
+      }
+
+      // Code snippet particles for working characters
+      if (ch.isActive && ch.state === CharacterState.TYPE && !ch.isCat) {
+        // Age existing snippets and remove expired ones
+        for (const s of ch.codeSnippets) s.age += dt
+        ch.codeSnippets = ch.codeSnippets.filter(s => s.age < CODE_SNIPPET_LIFETIME)
+        // Spawn new snippet randomly
+        if (ch.codeSnippets.length < 2 && Math.random() < dt * CODE_SNIPPET_SPAWN_RATE) {
+          ch.codeSnippets.push({
+            text: CODE_SNIPPETS[Math.floor(Math.random() * CODE_SNIPPETS.length)],
+            age: 0,
+            x: (Math.random() - 0.5) * 20,
+            y: 0,
+          })
+        }
+      } else {
+        ch.codeSnippets = []
       }
     }
     // Remove characters that finished despawn

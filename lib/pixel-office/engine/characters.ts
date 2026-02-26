@@ -94,6 +94,7 @@ export function createCharacter(
     matrixEffectSeeds: [],
     interactionTarget: null,
     isCat: false,
+    codeSnippets: [],
   }
 }
 

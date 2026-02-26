@@ -199,4 +199,5 @@ export interface Character {
   matrixEffectSeeds: number[]
   interactionTarget: { col: number; row: number; facingDir: Direction } | null
   isCat: boolean
+  codeSnippets: Array<{ text: string; age: number; x: number; y: number }>
 }
