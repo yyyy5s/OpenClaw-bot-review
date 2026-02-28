@@ -203,6 +203,33 @@ function getFeishuUserOpenIds(agentIds: string[], sessionsMap: Map<string, any>)
   }
   return map;
 }
+
+function getChannelDirectPeerIds(
+  agentIds: string[],
+  sessionsMap: Map<string, any>,
+  channel: "telegram" | "whatsapp"
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  const pattern = new RegExp(`^agent:[^:]+:${channel}:direct:(.+)$`);
+  for (const agentId of agentIds) {
+    try {
+      const sessions = sessionsMap.get(agentId);
+      if (!sessions) continue;
+      let best: { peerId: string; updatedAt: number } | null = null;
+      for (const [key, val] of Object.entries(sessions)) {
+        const m = key.match(pattern);
+        if (m) {
+          const updatedAt = (val as any).updatedAt || 0;
+          if (!best || updatedAt > best.updatedAt) {
+            best = { peerId: m[1], updatedAt };
+          }
+        }
+      }
+      if (best) map[agentId] = best.peerId;
+    } catch {}
+  }
+  return map;
+}
 // 从 IDENTITY.md 读取机器人名字
 function readIdentityName(agentId: string, agentDir?: string, workspace?: string): string | null {
   const candidates = [
@@ -301,6 +328,8 @@ export async function GET() {
 
     // 从预读的 sessions 数据获取飞书用户 open_id
     const feishuUserOpenIds = getFeishuUserOpenIds(agentIds, sessionsMap);
+    const telegramDirectPeerIds = getChannelDirectPeerIds(agentIds, sessionsMap, "telegram");
+    const whatsappDirectPeerIds = getChannelDirectPeerIds(agentIds, sessionsMap, "whatsapp");
     const discordDmAllowFrom = channels.discord?.dm?.allowFrom || [];
 
     // Build a set of agent IDs that have explicit feishu bindings
@@ -356,10 +385,12 @@ export async function GET() {
           platforms.push({ name: "discord", ...(botUserId && { botUserId }) });
         }
         if (channels.telegram && channels.telegram.enabled !== false) {
-          platforms.push({ name: "telegram" });
+          const botUserId = telegramDirectPeerIds[id] || null;
+          platforms.push({ name: "telegram", ...(botUserId && { botUserId }) });
         }
         if (channels.whatsapp && channels.whatsapp.enabled !== false) {
-          platforms.push({ name: "whatsapp" });
+          const botUserId = whatsappDirectPeerIds[id] || null;
+          platforms.push({ name: "whatsapp", ...(botUserId && { botUserId }) });
         }
       }
 
@@ -375,13 +406,15 @@ export async function GET() {
           (b: any) => b.agentId === id && b.match?.channel === "telegram"
         );
         if (telegramBinding) {
-          platforms.push({ name: "telegram" });
+          const botUserId = telegramDirectPeerIds[id] || null;
+          platforms.push({ name: "telegram", ...(botUserId && { botUserId }) });
         }
         const whatsappBinding = bindings.find(
           (b: any) => b.agentId === id && b.match?.channel === "whatsapp"
         );
         if (whatsappBinding) {
-          platforms.push({ name: "whatsapp" });
+          const botUserId = whatsappDirectPeerIds[id] || null;
+          platforms.push({ name: "whatsapp", ...(botUserId && { botUserId }) });
         }
       }
 

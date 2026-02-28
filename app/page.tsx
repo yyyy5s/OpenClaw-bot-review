@@ -184,6 +184,10 @@ function PlatformBadge({ platform, agentId, gatewayPort, gatewayToken, t, testRe
     sessionKey = `agent:${agentId}:feishu:direct:${platform.botOpenId}`;
   } else if (pName === "discord" && platform.botUserId) {
     sessionKey = `agent:${agentId}:discord:direct:${platform.botUserId}`;
+  } else if (pName === "telegram" && platform.botUserId) {
+    sessionKey = `agent:${agentId}:telegram:direct:${platform.botUserId}`;
+  } else if (pName === "whatsapp" && platform.botUserId) {
+    sessionKey = `agent:${agentId}:whatsapp:direct:${platform.botUserId}`;
   } else {
     sessionKey = `agent:${agentId}:main`;
   }
