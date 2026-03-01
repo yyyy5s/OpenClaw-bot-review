@@ -185,7 +185,7 @@ interface PlatformTestResult {
 // 平台标签颜色
 function PlatformBadge({ platform, agentId, gatewayPort, gatewayToken, gatewayHost, t, testResult }: { platform: Platform; agentId: string; gatewayPort: number; gatewayToken?: string; gatewayHost?: string; t: TFunc; testResult?: PlatformTestResult | null }) {
   const pName = platform.name;
-  const badgeWidthClass = "w-[7.25rem]";
+  const badgeWidthClass = "w-[8.25rem]";
 
   let sessionKey: string;
   if (pName === "feishu" && platform.botOpenId) {
@@ -225,9 +225,9 @@ function PlatformBadge({ platform, agentId, gatewayPort, gatewayToken, gatewayHo
         title={t("agent.openChat")}
         className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-all hover:scale-105 hover:shadow-md min-w-0 ${badgeWidthClass} ${badgeStyle}`}
       >
-        <span className="truncate">{label}</span>
+        <span className="shrink-0">{label}</span>
         {pName === "feishu" && platform.accountId && (
-          <span className="opacity-60 truncate max-w-[3.25rem]">({platform.accountId})</span>
+          <span className="opacity-60 truncate max-w-[4.5rem]">({platform.accountId})</span>
         )}
         <span className="opacity-50 text-[10px]">↗</span>
       </a>
