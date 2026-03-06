@@ -177,7 +177,7 @@ function PlatformBadge({
       badgeStyle: "bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/40 hover:border-green-400",
     },
     qqbot: {
-      remoteLogoSrc: "https://cdn.simpleicons.org/tencentqq/12B7F5",
+      remoteLogoSrc: "https://cdn.simpleicons.org/qq/12B7F5",
       logoFallbackSrc: "/assets/platform-logos/qq.svg",
       badgeStyle: "bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/40 hover:border-blue-400",
     },
