@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
+import { pathToFileURL } from "url";
 import { OPENCLAW_CONFIG_PATH, OPENCLAW_HOME } from "@/lib/openclaw-paths";
 const CONFIG_PATH = OPENCLAW_CONFIG_PATH;
 const QQBOT_TOKEN_URL = "https://bots.qq.com/app/getAppAccessToken";
 const QQBOT_API_BASE = "https://api.sgroup.qq.com";
+const YUANBAO_PLUGIN_DIST_DIR = path.join(OPENCLAW_HOME, "extensions/openclaw-plugin-yuanbao/dist/src");
+const DEFAULT_YUANBAO_API_DOMAIN = "bot.yuanbao.tencent.com";
+const DEFAULT_YUANBAO_WS_URL = "wss://bot-wss.yuanbao.tencent.com/wss/connection";
+const importExternalModule = new Function("modulePath", "return import(modulePath)") as (modulePath: string) => Promise<any>;
 
 interface PlatformTestResult {
   agentId: string;
@@ -15,6 +20,11 @@ interface PlatformTestResult {
   detail?: string;
   error?: string;
   elapsed: number;
+}
+
+interface YuanbaoDmContext {
+  target: string;
+  accountId: string | null;
 }
 
 function runOpenClawMessageSend(channel: string, target: string, message: string, extraArgs: string[] = []): string {
@@ -32,6 +42,24 @@ function runOpenClawMessageSend(channel: string, target: string, message: string
     encoding: "utf-8",
     env: { ...process.env },
   });
+}
+
+async function probeGatewayWebUi(port: number, token: string, timeoutMs = 5000): Promise<{ ok: boolean; error?: string }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(
+      `http://localhost:${port}/chat${token ? `?token=${encodeURIComponent(token)}` : ""}`,
+      { signal: controller.signal, cache: "no-store", redirect: "manual" },
+    );
+    return resp.status >= 200 && resp.status < 400
+      ? { ok: true }
+      : { ok: false, error: `HTTP ${resp.status}` };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Failed to reach gateway web UI" };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function runCurlJson(url: string, options: { method?: string; headers?: string[]; body?: string; timeoutSec?: number } = {}): { status: number; data: any; raw: string } {
@@ -319,6 +347,155 @@ function getDiscordAllowlistUser(discordConfig: any): string | null {
   return first ? first.trim() : null;
 }
 
+function getChannelDmUser(agentId: string, channel: string): string | null {
+  try {
+    const sessionsPath = path.join(OPENCLAW_HOME, `agents/${agentId}/sessions/sessions.json`);
+    const raw = fs.readFileSync(sessionsPath, "utf-8");
+    const sessions = JSON.parse(raw);
+    let bestId: string | null = null;
+    let bestTime = 0;
+    const pattern = new RegExp(`^agent:[^:]+:${channel}:direct:(.+)$`);
+    for (const [key, val] of Object.entries(sessions)) {
+      const m = key.match(pattern);
+      if (m) {
+        const updatedAt = (val as any).updatedAt || 0;
+        if (updatedAt > bestTime) {
+          bestTime = updatedAt;
+          bestId = m[1];
+        }
+      }
+    }
+    return bestId;
+  } catch {
+    return null;
+  }
+}
+
+function stripChannelTarget(value: string | null | undefined, channel: string): string | null {
+  if (!value || typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const prefix = `${channel}:`;
+  return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+}
+
+function getYuanbaoDmContext(agentId: string): YuanbaoDmContext | null {
+  try {
+    const sessionsPath = path.join(OPENCLAW_HOME, `agents/${agentId}/sessions/sessions.json`);
+    const raw = fs.readFileSync(sessionsPath, "utf-8");
+    const sessions = JSON.parse(raw);
+    let best: YuanbaoDmContext | null = null;
+    let bestTime = 0;
+
+    for (const [key, val] of Object.entries(sessions)) {
+      const match = key.match(/^agent:[^:]+:yuanbao:direct:(.+)$/);
+      if (!match) continue;
+      const session = val as any;
+      const updatedAt = session?.updatedAt || 0;
+      if (updatedAt <= bestTime) continue;
+
+      const target = stripChannelTarget(session?.deliveryContext?.to, "yuanbao")
+        || stripChannelTarget(session?.origin?.to, "yuanbao")
+        || match[1];
+      if (!target) continue;
+
+      bestTime = updatedAt;
+      best = {
+        target,
+        accountId: typeof session?.deliveryContext?.accountId === "string" && session.deliveryContext.accountId.trim()
+          ? session.deliveryContext.accountId.trim()
+          : (typeof session?.origin?.accountId === "string" && session.origin.accountId.trim()
+            ? session.origin.accountId.trim()
+            : null),
+      };
+    }
+
+    return best;
+  } catch {
+    return null;
+  }
+}
+
+function resolveYuanbaoTestAccount(channelConfig: any, preferredAccountId?: string | null) {
+  const accounts = channelConfig?.accounts && typeof channelConfig.accounts === "object"
+    ? channelConfig.accounts
+    : {};
+  const availableAccountIds = Object.keys(accounts).filter((value) => value.trim().length > 0);
+  const defaultAccountId = typeof channelConfig?.defaultAccount === "string" && channelConfig.defaultAccount.trim()
+    ? channelConfig.defaultAccount.trim()
+    : (availableAccountIds.includes("default") ? "default" : (availableAccountIds[0] ?? "default"));
+  const accountId = preferredAccountId?.trim() || defaultAccountId;
+  const scopedConfig = accounts?.[accountId] && typeof accounts[accountId] === "object"
+    ? accounts[accountId]
+    : {};
+  const merged = { ...channelConfig, ...scopedConfig };
+  const { accounts: _accounts, defaultAccount: _defaultAccount, ...config } = merged;
+
+  const appKey = typeof config.appKey === "string" ? config.appKey.trim() : "";
+  const appSecret = typeof config.appSecret === "string" ? config.appSecret.trim() : "";
+  const identifier = typeof config.identifier === "string" ? config.identifier.trim() : "";
+  const token = typeof config.token === "string" ? config.token.trim() : "";
+  const apiDomain = typeof config.apiDomain === "string" && config.apiDomain.trim()
+    ? config.apiDomain.trim()
+    : DEFAULT_YUANBAO_API_DOMAIN;
+  const wsGatewayUrl = typeof config.wsUrl === "string" && config.wsUrl.trim()
+    ? config.wsUrl.trim()
+    : DEFAULT_YUANBAO_WS_URL;
+
+  return {
+    accountId,
+    account: {
+      accountId,
+      enabled: config.enabled !== false,
+      configured: Boolean(appKey && appSecret),
+      appKey: appKey || undefined,
+      appSecret: appSecret || undefined,
+      identifier: identifier || undefined,
+      botId: typeof config.botId === "string" && config.botId.trim() ? config.botId.trim() : undefined,
+      apiDomain,
+      token: token || undefined,
+      wsGatewayUrl,
+      wsHeartbeatInterval: undefined,
+      wsMaxReconnectAttempts: 1,
+      overflowPolicy: config.overflowPolicy === "split" ? "split" : "stop",
+      mediaMaxMb: typeof config.mediaMaxMb === "number" && config.mediaMaxMb >= 1 ? config.mediaMaxMb : 20,
+      historyLimit: typeof config.historyLimit === "number" && config.historyLimit >= 0 ? config.historyLimit : 100,
+      config,
+    },
+  };
+}
+
+let yuanbaoRuntimePromise: Promise<{
+  getSignToken: (account: any, log?: any) => Promise<any>;
+  YuanbaoWsClient: any;
+  sendYuanbaoMessage: (params: any) => Promise<any>;
+}> | null = null;
+
+async function loadYuanbaoRuntime() {
+  if (!yuanbaoRuntimePromise) {
+    yuanbaoRuntimePromise = Promise.all([
+      importExternalModule(pathToFileURL(path.join(YUANBAO_PLUGIN_DIST_DIR, "yuanbao-server/http/request.js")).href),
+      importExternalModule(pathToFileURL(path.join(YUANBAO_PLUGIN_DIST_DIR, "yuanbao-server/ws/client.js")).href),
+      importExternalModule(pathToFileURL(path.join(YUANBAO_PLUGIN_DIST_DIR, "message-handler/outbound.js")).href),
+    ]).then(([requestModule, clientModule, outboundModule]) => ({
+      getSignToken: requestModule.getSignToken,
+      YuanbaoWsClient: clientModule.YuanbaoWsClient,
+      sendYuanbaoMessage: outboundModule.sendYuanbaoMessage,
+    }));
+  }
+  return yuanbaoRuntimePromise;
+}
+
+function getChannelAllowlistUser(channelConfig: any): string | null {
+  const list = Array.isArray(channelConfig?.allowFrom)
+    ? channelConfig.allowFrom
+    : Array.isArray(channelConfig?.dm?.allowFrom)
+      ? channelConfig.dm.allowFrom
+      : [];
+  const first = list.find((v: any) => typeof v === "string" && v.trim().length > 0);
+  return first ? first.trim() : null;
+}
+
 // Find the most recent telegram DM chat_id for a given agent
 function getTelegramDmUser(agentId: string): string | null {
   try {
@@ -376,6 +553,199 @@ async function testTelegram(
   } catch (err: any) {
     return {
       agentId, platform: "telegram", ok: false,
+      error: (err.stderr || err.message || "Unknown error").slice(0, 300),
+      elapsed: Date.now() - startTime,
+    };
+  }
+}
+
+async function testYuanbao(
+  agentId: string,
+  channelConfig: any,
+  testUserId: string | null,
+  recipientSource: "session" | "allowFrom" | "none",
+  preferredAccountId?: string | null,
+): Promise<PlatformTestResult> {
+  const startTime = Date.now();
+  const { accountId, account } = resolveYuanbaoTestAccount(channelConfig, preferredAccountId);
+
+  if (!account.appKey || !account.appSecret) {
+    return {
+      agentId,
+      platform: "yuanbao",
+      accountId,
+      ok: false,
+      error: "Yuanbao credentials missing. Configure channels.yuanbao.appKey and channels.yuanbao.appSecret",
+      elapsed: Date.now() - startTime,
+    };
+  }
+
+  if (!testUserId) {
+    return {
+      agentId,
+      platform: "yuanbao",
+      accountId,
+      ok: false,
+      error: "No Yuanbao recipient configured. Set channels.yuanbao.allowFrom or start one DM session first",
+      elapsed: Date.now() - startTime,
+    };
+  }
+
+  let wsClient: any = null;
+
+  try {
+    const { getSignToken, YuanbaoWsClient, sendYuanbaoMessage } = await loadYuanbaoRuntime();
+    const tokenData = await getSignToken(account);
+    const botId = typeof tokenData?.bot_id === "string" && tokenData.bot_id.trim()
+      ? tokenData.bot_id.trim()
+      : (typeof account.botId === "string" && account.botId.trim()
+        ? account.botId.trim()
+        : (typeof account.identifier === "string" ? account.identifier : ""));
+
+    if (!botId) {
+      throw new Error("Yuanbao sign token succeeded but bot_id is missing");
+    }
+
+    account.botId = botId;
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        wsClient?.disconnect?.();
+        reject(new Error("Yuanbao WebSocket ready timeout"));
+      }, 20000);
+
+      const finish = (cb: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        cb();
+      };
+
+      wsClient = new YuanbaoWsClient({
+        connection: {
+          gatewayUrl: account.wsGatewayUrl,
+          auth: {
+            bizId: "ybBot",
+            uid: botId,
+            source: tokenData?.source || "bot",
+            token: tokenData?.token,
+            ...(account.config?.routeEnv ? { routeEnv: account.config.routeEnv } : {}),
+          },
+        },
+        config: {
+          maxReconnectAttempts: account.wsMaxReconnectAttempts,
+        },
+        callbacks: {
+          onReady: () => finish(resolve),
+          onError: (error: Error) => finish(() => reject(error)),
+          onClose: (code: number, reason: string) => finish(() => reject(new Error(`Yuanbao WebSocket closed before ready: ${code} ${reason || ""}`.trim()))),
+        },
+        log: {
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+          debug: () => {},
+        },
+      });
+
+      wsClient.connect();
+    });
+
+    const now = new Date().toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai" });
+    const sendResult = await sendYuanbaoMessage({
+      account,
+      toAccount: testUserId,
+      text: `[Platform Test] Yuanbao 联通测试 ✅ (${now})`,
+      fromAccount: account.botId,
+      ctx: {
+        account,
+        config: {},
+        core: {},
+        log: { info: () => {}, warn: () => {}, error: () => {}, verbose: () => {} },
+        wsClient,
+      },
+    });
+
+    const elapsed = Date.now() - startTime;
+    if (!sendResult?.ok) {
+      return {
+        agentId,
+        platform: "yuanbao",
+        accountId,
+        ok: false,
+        error: sendResult?.error || "Yuanbao real IM send failed",
+        elapsed,
+      };
+    }
+
+    const sourceLabel = recipientSource === "allowFrom" ? "allowFrom" : "session";
+    return {
+      agentId,
+      platform: "yuanbao",
+      accountId,
+      ok: true,
+      detail: `Yuanbao → real IM sent to ${testUserId} (${elapsed}ms, via ${sourceLabel})${sendResult?.messageId ? ` · msgId=${sendResult.messageId}` : ""}`,
+      elapsed,
+    };
+  } catch (err: any) {
+    return {
+      agentId,
+      platform: "yuanbao",
+      accountId,
+      ok: false,
+      error: err?.message || "Yuanbao real IM send failed",
+      elapsed: Date.now() - startTime,
+    };
+  } finally {
+    wsClient?.disconnect?.();
+  }
+}
+
+async function testGenericChannel(
+  agentId: string,
+  channel: string,
+  testUserId: string | null,
+  recipientSource: "session" | "allowFrom" | "none"
+): Promise<PlatformTestResult> {
+  const startTime = Date.now();
+  const displayName = channel.charAt(0).toUpperCase() + channel.slice(1);
+
+  if (!testUserId) {
+    return {
+      agentId,
+      platform: channel,
+      ok: false,
+      error: `No ${displayName} recipient configured. Set channels.${channel}.allowFrom or start one DM session first`,
+      elapsed: Date.now() - startTime,
+    };
+  }
+
+  try {
+    const now = new Date().toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai" });
+    const result = runOpenClawMessageSend(
+      channel,
+      testUserId,
+      `[Platform Test] ${displayName} 联通测试 ✅ (${now})`,
+      ["--silent"]
+    );
+    const elapsed = Date.now() - startTime;
+    const sourceLabel = recipientSource === "allowFrom" ? "allowFrom" : "session";
+    const outputSummary = result.trim().slice(0, 120);
+    return {
+      agentId,
+      platform: channel,
+      ok: true,
+      detail: `${displayName} → DM sent to ${testUserId} (${elapsed}ms, via ${sourceLabel})${outputSummary ? ` · ${outputSummary}` : ""}`,
+      elapsed,
+    };
+  } catch (err: any) {
+    return {
+      agentId,
+      platform: channel,
+      ok: false,
       error: (err.stderr || err.message || "Unknown error").slice(0, 300),
       elapsed: Date.now() - startTime,
     };
@@ -718,6 +1088,7 @@ export async function POST() {
     const telegramConfig = channels.telegram || {};
     const whatsappConfig = channels.whatsapp || {};
     const qqbotConfig = channels.qqbot;
+    const specialPlatformNames = new Set(["feishu", "discord", "telegram", "whatsapp", "qqbot"]);
 
     // Read gateway config early (needed for WhatsApp test)
     const gatewayPort = config.gateway?.port || 18789;
@@ -809,6 +1180,32 @@ export async function POST() {
         const source: "session" | "allowFrom" | "none" =
           recentDmUser ? "session" : (allowFromUser ? "allowFrom" : "none");
         sequentialPlatformTests.push(() => testQqbot(id, qqbotConfig, qqbotAccountId, qqbotTestUser, source));
+      }
+
+      for (const [channelName, channelConfig] of Object.entries(channels)) {
+        if (specialPlatformNames.has(channelName)) continue;
+        if (!channelConfig || typeof channelConfig !== "object" || (channelConfig as any).enabled === false) continue;
+
+        const hasBinding = bindings.some(
+          (b: any) => b.agentId === id && b.match?.channel === channelName
+        );
+        if (id !== "main" && !hasBinding) continue;
+
+        const yuanbaoDmContext = channelName === "yuanbao" ? getYuanbaoDmContext(id) : null;
+        const recentDmUser = channelName === "yuanbao"
+          ? (yuanbaoDmContext?.target ?? null)
+          : getChannelDmUser(id, channelName);
+        const allowFromUser = channelName === "yuanbao"
+          ? stripChannelTarget(getChannelAllowlistUser(channelConfig), "yuanbao")
+          : getChannelAllowlistUser(channelConfig);
+        const testUserId = recentDmUser || allowFromUser || null;
+        const source: "session" | "allowFrom" | "none" =
+          recentDmUser ? "session" : (allowFromUser ? "allowFrom" : "none");
+        if (channelName === "yuanbao") {
+          sequentialPlatformTests.push(() => testYuanbao(id, channelConfig, testUserId, source, yuanbaoDmContext?.accountId ?? null));
+        } else {
+          sequentialPlatformTests.push(() => testGenericChannel(id, channelName, testUserId, source));
+        }
       }
     }
 
