@@ -1,4 +1,5 @@
 import type { SpriteData } from '../types'
+import { withBasePath } from '@/lib/base-path'
 import { setCharacterTemplates } from './spriteData'
 import type { LoadedCharacterData } from './spriteData'
 import { setWallSprites } from '../wallTiles'
@@ -43,7 +44,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     const img = new Image()
     img.onload = () => resolve(img)
     img.onerror = reject
-    img.src = src
+    img.src = withBasePath(src)
   })
 }
 

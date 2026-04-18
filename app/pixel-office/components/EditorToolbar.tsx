@@ -9,37 +9,38 @@ import { getCachedSprite } from '@/lib/pixel-office/sprites/spriteCache'
 import { getColorizedFloorSprite, getFloorPatternCount, hasFloorSprites } from '@/lib/pixel-office/floorTiles'
 
 const btnStyle: React.CSSProperties = {
-  padding: '3px 8px',
+  padding: '4px 10px',
   fontSize: '12px',
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: 'rgba(255, 255, 255, 0.7)',
-  border: '2px solid transparent',
+  background: '#1f2937',
+  color: 'rgba(243, 255, 230, 0.84)',
+  border: '2px solid rgba(148, 163, 184, 0.28)',
   borderRadius: 0,
   cursor: 'pointer',
+  boxShadow: 'inset 0 -2px 0 rgba(0, 0, 0, 0.22)',
 }
 
 const activeBtnStyle: React.CSSProperties = {
   ...btnStyle,
-  background: 'rgba(90, 140, 255, 0.25)',
-  color: 'rgba(255, 255, 255, 0.9)',
-  border: '2px solid #5a8cff',
+  background: 'rgba(255, 209, 102, 0.16)',
+  color: '#fff0bf',
+  border: '2px solid rgba(255, 209, 102, 0.78)',
 }
 
 const tabStyle: React.CSSProperties = {
-  padding: '2px 6px',
+  padding: '3px 8px',
   fontSize: '11px',
-  background: 'transparent',
-  color: 'rgba(255, 255, 255, 0.5)',
-  border: '2px solid transparent',
+  background: '#182131',
+  color: 'rgba(236, 253, 245, 0.68)',
+  border: '2px solid rgba(100, 116, 139, 0.35)',
   borderRadius: 0,
   cursor: 'pointer',
 }
 
 const activeTabStyle: React.CSSProperties = {
   ...tabStyle,
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: 'rgba(255, 255, 255, 0.8)',
-  border: '2px solid #5a8cff',
+  background: 'rgba(120, 163, 64, 0.2)',
+  color: '#f3ffe6',
+  border: '2px solid rgba(143, 190, 74, 0.82)',
 }
 
 function FloorPatternPreview({ patternIndex, color, selected, onClick }: {
@@ -73,8 +74,8 @@ function FloorPatternPreview({ patternIndex, color, selected, onClick }: {
   return (
     <button onClick={onClick} title={`Floor ${patternIndex}`} style={{
       width: displaySize, height: displaySize, padding: 0,
-      border: selected ? '2px solid #5a8cff' : '2px solid #4a4a6a',
-      borderRadius: 0, cursor: 'pointer', overflow: 'hidden', flexShrink: 0, background: '#2A2A3A',
+      border: selected ? '2px solid rgba(255, 209, 102, 0.82)' : '2px solid rgba(100, 116, 139, 0.45)',
+      borderRadius: 0, cursor: 'pointer', overflow: 'hidden', flexShrink: 0, background: '#182131',
     }}>
       <canvas ref={canvasRef} style={{ width: displaySize, height: displaySize, display: 'block' }} />
     </button>
@@ -153,9 +154,9 @@ export function EditorToolbar({
   return (
     <div style={{
       position: 'absolute', bottom: 12, left: 10, zIndex: 50,
-      background: '#1e1e2e', border: '2px solid #4a4a6a', borderRadius: 0,
-      padding: '6px 8px', display: 'flex', flexDirection: 'column-reverse', gap: 6,
-      boxShadow: '2px 2px 0px #0a0a14', maxWidth: 'calc(100vw - 20px)',
+      background: '#141722', border: '4px solid #0e1119', borderRadius: 0,
+      padding: '8px 10px', display: 'flex', flexDirection: 'column-reverse', gap: 6,
+      boxShadow: '0 0 0 2px rgba(100, 71, 125, 0.3), 0 12px 24px rgba(3, 6, 20, 0.3)', maxWidth: 'calc(100vw - 20px)',
     }}>
       {/* Tool row */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -187,7 +188,7 @@ export function EditorToolbar({
             <button style={activeTool === EditTool.EYEDROPPER ? activeBtnStyle : btnStyle} onClick={() => onToolChange(EditTool.EYEDROPPER)} title="Pick floor pattern + color">Pick</button>
           </div>
           {showColor && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '4px 6px', background: '#181828', border: '2px solid #4a4a6a', borderRadius: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 8px', background: '#0b1220', border: '2px solid rgba(100, 116, 139, 0.35)', borderRadius: 0 }}>
               <ColorSlider label="H" value={floorColor.h} min={0} max={360} onChange={v => handleColorChange('h', v)} />
               <ColorSlider label="S" value={floorColor.s} min={0} max={100} onChange={v => handleColorChange('s', v)} />
               <ColorSlider label="B" value={floorColor.b} min={-100} max={100} onChange={v => handleColorChange('b', v)} />
@@ -210,7 +211,7 @@ export function EditorToolbar({
             <button style={showWallColor ? activeBtnStyle : btnStyle} onClick={() => setShowWallColor(v => !v)} title="Adjust wall color">Color</button>
           </div>
           {showWallColor && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '4px 6px', background: '#181828', border: '2px solid #4a4a6a', borderRadius: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 8px', background: '#0b1220', border: '2px solid rgba(100, 116, 139, 0.35)', borderRadius: 0 }}>
               <ColorSlider label="H" value={wallColor.h} min={0} max={360} onChange={v => handleWallColorChange('h', v)} />
               <ColorSlider label="S" value={wallColor.s} min={0} max={100} onChange={v => handleWallColorChange('s', v)} />
               <ColorSlider label="B" value={wallColor.b} min={-100} max={100} onChange={v => handleWallColorChange('b', v)} />
@@ -237,7 +238,7 @@ export function EditorToolbar({
               return (
                 <button key={entry.type} onClick={() => onFurnitureTypeChange(entry.type)} title={entry.label} style={{
                   width: thumbSize, height: thumbSize, background: '#2A2A3A',
-                  border: isSelected ? '2px solid #5a8cff' : '2px solid #4a4a6a',
+                  border: isSelected ? '2px solid rgba(255, 209, 102, 0.82)' : '2px solid rgba(100, 116, 139, 0.45)',
                   borderRadius: 0, cursor: 'pointer', padding: 0, display: 'flex',
                   alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0,
                   fontSize: hasSprite ? undefined : 20,
@@ -274,7 +275,7 @@ export function EditorToolbar({
             )}
           </div>
           {showFurnitureColor && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '4px 6px', background: '#181828', border: '2px solid #4a4a6a', borderRadius: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 8px', background: '#0b1220', border: '2px solid rgba(100, 116, 139, 0.35)', borderRadius: 0 }}>
               {effectiveColor.colorize ? (
                 <>
                   <ColorSlider label="H" value={effectiveColor.h} min={0} max={360} onChange={v => handleSelFurnColorChange('h', v)} />

@@ -4,6 +4,7 @@ import { Providers } from "./providers";
 import { Sidebar } from "./sidebar";
 import { AlertMonitor } from "./alert-monitor";
 import { GlobalBugsOverlay } from "./global-bugs-overlay";
+import { normalizeBasePath } from "@/lib/base-path";
 
 export const metadata: Metadata = {
   title: "OpenClaw Bot Dashboard",
@@ -16,8 +17,10 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH ?? process.env.NEXT_BASE_PATH ?? process.env.BASE_PATH ?? "");
+
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" data-base-path={basePath || undefined}>
       <body>
         <Providers>
           <AlertMonitor />

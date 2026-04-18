@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { withBasePath } from '@/lib/base-path'
 import { OfficeState, type GatewaySreState } from '@/lib/pixel-office/engine/officeState'
 import { renderFrame } from '@/lib/pixel-office/engine/renderer'
 import { buildGatewayUrl } from "@/lib/gateway-url"
@@ -29,6 +30,8 @@ import {
   isSoundEnabled,
 } from '@/lib/pixel-office/notificationSound'
 import { loadCharacterPNGs, loadWallPNG } from '@/lib/pixel-office/sprites/pngLoader'
+import { loadStarAssets, updateStarMode } from '@/lib/pixel-office/engine/starOverlay'
+import type { StarModeState } from '@/lib/pixel-office/engine/starOverlay'
 import { useI18n } from '@/lib/i18n'
 import { EditorToolbar } from './components/EditorToolbar'
 import { EditActionBar } from './components/EditActionBar'
@@ -265,6 +268,7 @@ export default function PixelOfficePage() {
   const [cachedModelTestResults, setCachedModelTestResults] = useState<Record<string, AgentModelTestResult | null> | null>(null)
   const [cachedPlatformTestResults, setCachedPlatformTestResults] = useState<Record<string, PlatformTestResult | null> | null>(null)
   const [cachedSessionTestResults, setCachedSessionTestResults] = useState<Record<string, AgentSessionTestResult | null> | null>(null)
+  const starModeRef = useRef<StarModeState | null>(null)
   const [cachedDmSessionResults, setCachedDmSessionResults] = useState<Record<string, PlatformTestResult | null> | null>(null)
   const selectedAgentOpenedAtRef = useRef(0)
   const tokenRankOpenedAtRef = useRef(0)
@@ -410,6 +414,10 @@ export default function PixelOfficePage() {
           spriteAssetsPromise = Promise.all([loadCharacterPNGs(), loadWallPNG()]).then(() => undefined)
         }
         await spriteAssetsPromise
+        // Load Star-Office overlay assets
+        if (!starModeRef.current) {
+          try { starModeRef.current = await loadStarAssets() } catch {}
+        }
         setOfficeReady(true)
         return
       }
@@ -433,6 +441,10 @@ export default function PixelOfficePage() {
         spriteAssetsPromise = Promise.all([loadCharacterPNGs(), loadWallPNG()]).then(() => undefined)
       }
       await spriteAssetsPromise
+      // Load Star-Office overlay assets
+      if (!starModeRef.current) {
+        try { starModeRef.current = await loadStarAssets() } catch {}
+      }
       setOfficeReady(true)
     }
     loadLayout()
@@ -558,6 +570,10 @@ export default function PixelOfficePage() {
       }
       const dpr = window.devicePixelRatio || 1
       office.update(dt)
+      // Update Star-Office overlay state
+      if (starModeRef.current?.ready) {
+        updateStarMode(starModeRef.current, dt, office.getCharacters())
+      }
 
       canvas.width = width * dpr
       canvas.height = height * dpr
@@ -605,9 +621,12 @@ export default function PixelOfficePage() {
           editorRender, office.layout.tileColors, office.layout.cols, office.layout.rows,
           undefined,
           contributionsRef.current ?? undefined, photographRef.current ?? undefined,
-          gatewayHealthyRef.current)
+          gatewayHealthyRef.current,
+          starModeRef.current)
 
         // Collect photo comment positions for DOM rendering
+        // In Star mode, danmaku/bubbles are rendered directly on canvas — skip DOM layer
+        const isStarActive = !!starModeRef.current?.ready
         const zoom = zoomRef.current
         const pan = panRef.current
         const cols = office.layout.cols
@@ -620,6 +639,7 @@ export default function PixelOfficePage() {
         const lifetime = 4.0
         const items: Array<{ key: string; text: string; x: number; y: number; opacity: number }> = []
         const codeItems: Array<{ key: string; text: string; x: number; y: number; opacity: number; kind?: 'default' | 'sre' }> = []
+        if (!isStarActive) {
         const workingCharIds = new Set<number>()
         for (const a of agents) {
           if (a.state !== 'working') continue
@@ -675,6 +695,7 @@ export default function PixelOfficePage() {
             })
           }
         }
+        } // end !isStarActive
         floatingCommentsRef.current = items
         floatingCodeRef.current = codeItems
         const hasFloating = items.length > 0 || codeItems.length > 0
@@ -720,7 +741,7 @@ export default function PixelOfficePage() {
   // Load photograph for right room wall
   useEffect(() => {
     const img = new Image()
-    img.src = '/assets/pixel-office/photograph.webp'
+    img.src = withBasePath('/assets/pixel-office/photograph.webp')
     img.onload = () => { photographRef.current = img }
   }, [])
 
@@ -1636,12 +1657,12 @@ export default function PixelOfficePage() {
   const selectedItem = editor.selectedFurnitureUid
     ? officeRef.current?.layout.furniture.find(f => f.uid === editor.selectedFurnitureUid) : null
   const modalOverlayClass = isMobileViewport
-    ? "absolute inset-0 z-20 flex items-end justify-center bg-black/50"
-    : "absolute inset-0 z-20 flex items-center justify-center bg-black/40"
+    ? "absolute inset-0 z-20 flex items-end justify-center bg-black/60 backdrop-blur-[2px]"
+    : "absolute inset-0 z-20 flex items-center justify-center bg-black/55 backdrop-blur-[2px]"
   const modalPanelClass = (desktopWidth = "w-80", maxHeight = "max-h-[80%]") =>
     isMobileViewport
-      ? `w-full ${maxHeight} overflow-y-auto rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--card)] shadow-2xl p-4 pb-6`
-      : `${desktopWidth} ${maxHeight} overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-2xl p-4`
+      ? `pixel-office-modal w-full ${maxHeight} overflow-y-auto p-4 pb-6`
+      : `pixel-office-modal ${desktopWidth} ${maxHeight} overflow-y-auto p-4`
   const displayAgents = useMemo<AgentActivity[]>(() => {
     const expanded: AgentActivity[] = []
     for (const agent of agents) {
@@ -1665,6 +1686,13 @@ export default function PixelOfficePage() {
   for (let i = 0; i < displayAgents.length; i += 9) {
     mobileAgentPages.push(displayAgents.slice(i, i + 9))
   }
+  const officeHeaderStatus = displayAgents.length === 0
+    ? t('common.noData')
+    : locale === 'en'
+      ? `${displayAgents.length} agents active in office`
+      : locale === 'zh-TW'
+        ? `${displayAgents.length} 位代理在線辦公`
+        : `${displayAgents.length} 位代理在线办公`
   const renderAgentChip = (agent: AgentActivity, mobileGrid = false) => {
     const isTempWorker = agent.agentId.startsWith('subagent:')
     const parentAgentIdFromKey = isTempWorker ? (agent.agentId.split(':')[1] || '') : ''
@@ -1681,7 +1709,7 @@ export default function PixelOfficePage() {
       )
     return (
       <div key={agent.agentId} className="group relative overflow-visible">
-        <div className={`pixel-agent-chip inline-flex h-8 items-center overflow-hidden rounded-lg border transition-colors ${
+        <div className={`pixel-agent-chip pixel-office-pill inline-flex h-8 items-center overflow-hidden border transition-colors ${
           mobileGrid ? 'w-full min-w-0 gap-1.5 px-2 py-1.5' : 'shrink-0 gap-2 px-3 py-1.5'
         } ${chipToneClass}`}
           title={chipTooltip}
@@ -1705,7 +1733,7 @@ export default function PixelOfficePage() {
           {agent.state === 'waiting' && <span className={`pixel-agent-chip-state uppercase tracking-wider ${mobileGrid ? 'text-[9px] truncate' : 'text-[10px]'}`}>{t('pixelOffice.state.waiting')}</span>}
         </div>
         {!isMobileViewport && (
-          <div className="pointer-events-none absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-[calc(100%+6px)] whitespace-nowrap rounded-md border border-[var(--border)] bg-[var(--card)]/95 px-2 py-1 text-[11px] text-[var(--text)] opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+          <div className="pixel-office-tooltip pointer-events-none absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-[calc(100%+8px)] whitespace-nowrap px-2 py-1 text-[11px] text-[#ecfdf5] opacity-0 transition-opacity duration-150 group-hover:opacity-100">
             {chipTooltip}
           </div>
         )}
@@ -1714,7 +1742,7 @@ export default function PixelOfficePage() {
   }
 
   return (
-    <div className="relative flex flex-col overflow-hidden h-[calc(100dvh-3.5rem)] md:h-full">
+    <div className="pixel-office-page relative flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden md:h-dvh">
       {/* Floating photo comment DOM bubbles */}
       {floatingCommentsRef.current.map(fc => (
         <div key={fc.key} className="absolute pointer-events-none z-30 whitespace-nowrap"
@@ -1754,59 +1782,57 @@ export default function PixelOfficePage() {
         </div>
       ))}
       {/* Top bar: agent tags + controls */}
-      <div className="flex flex-col gap-2 p-3 md:p-4 border-b border-[var(--border)]">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-bold text-[var(--text)]">{t('pixelOffice.title')}</span>
-          <div className="flex gap-2">
+      <div className="px-3 pt-3 md:px-6 md:pt-6">
+        <div className="pixel-office-chrome px-4 py-4 md:px-5 md:py-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <div className="pixel-office-kicker">Pixel Office</div>
+              <div className="pixel-office-title mt-1 text-base md:text-xl">{t('pixelOffice.title')}</div>
+              <div className="pixel-office-subtitle mt-2 text-xs md:text-sm">{officeHeaderStatus}</div>
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
             <button onClick={toggleSound}
-              className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                soundOn ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30 text-[var(--accent)]'
-                  : 'bg-[var(--card)] border-[var(--border)] text-[var(--text-muted)]'
+              className={`pixel-office-button px-3 py-2 text-[11px] md:text-xs ${
+                soundOn ? 'pixel-office-button--active'
+                  : 'pixel-office-button--muted'
               }`}>
               {soundOn ? '🔔' : '🔕'} {t('pixelOffice.sound')}
             </button>
             {soundOn && (
               <button onClick={skipToNextTrack}
-                className="px-3 py-1.5 text-xs rounded-lg border transition-colors bg-[var(--card)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--accent)]"
+                className="pixel-office-button pixel-office-button--muted px-3 py-2 text-[11px] md:text-xs"
                 title="下一首">
                 ⏭
               </button>
             )}
-            <button onClick={toggleEditMode}
-              className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                isEditMode ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30 text-[var(--accent)]'
-                  : 'bg-[var(--card)] border-[var(--border)] text-[var(--text-muted)]'
-              }`}>
-              {isEditMode ? t('pixelOffice.exitEdit') : t('pixelOffice.editMode')}
-            </button>
           </div>
-        </div>
-        <div className="md:hidden overflow-x-auto pb-1">
-          {displayAgents.length === 0 ? (
-            <div className="text-[var(--text-muted)] text-sm">{t('common.noData')}</div>
-          ) : (
-            <div className="flex gap-2 min-w-full snap-x snap-mandatory">
-              {mobileAgentPages.map((page, pageIndex) => (
-                <div key={`mobile-agent-page-${pageIndex}`} className="grid grid-cols-3 grid-rows-3 gap-2 min-w-full h-[8.4rem] shrink-0 snap-start">
-                  {page.map((agent) => renderAgentChip(agent, true))}
-                  {page.length < 9 && Array.from({ length: 9 - page.length }).map((_, i) => (
-                    <div key={`mobile-agent-page-${pageIndex}-placeholder-${i}`} className="rounded-lg border border-transparent" />
-                  ))}
-                </div>
-              ))}
+          </div>
+          {displayAgents.length > 0 && (
+            <div className="pixel-office-strip mt-4 p-3 md:hidden">
+              <div className="flex min-w-full snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
+                {mobileAgentPages.map((page, pageIndex) => (
+                  <div key={`mobile-agent-page-${pageIndex}`} className="grid min-w-full shrink-0 snap-start grid-cols-3 grid-rows-3 gap-2 h-[8.4rem]">
+                    {page.map((agent) => renderAgentChip(agent, true))}
+                    {page.length < 9 && Array.from({ length: 9 - page.length }).map((_, i) => (
+                      <div key={`mobile-agent-page-${pageIndex}-placeholder-${i}`} className="border border-transparent" />
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-        </div>
-        <div className="hidden md:flex gap-2 flex-1 flex-wrap">
-          {displayAgents.map((agent) => renderAgentChip(agent))}
-          {displayAgents.length === 0 && (
-            <div className="text-[var(--text-muted)] text-sm">{t('common.noData')}</div>
+          {displayAgents.length > 0 && (
+            <div className="pixel-office-strip mt-4 hidden p-3 md:block">
+              <div className="flex min-h-9 flex-wrap gap-2">
+                {displayAgents.map((agent) => renderAgentChip(agent))}
+              </div>
+            </div>
           )}
         </div>
       </div>
 
       {/* Canvas */}
-      <div ref={containerRef} className="flex-1 relative overflow-hidden bg-[#1a1a2e]">
+      <div ref={containerRef} className="pixel-office-stage relative mx-3 mb-3 mt-3 flex-1 overflow-hidden md:mx-6 md:mb-6 md:mt-4">
         <canvas ref={canvasRef}
           onMouseMove={handleMouseMove}
           onMouseDown={handleMouseDown} onMouseUp={handleMouseUp}
@@ -1819,7 +1845,7 @@ export default function PixelOfficePage() {
           style={{ touchAction: 'none' }} />
         {!officeReady && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#1a1a2e]/85 pointer-events-none">
-            <div className="px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--text-muted)]">
+            <div className="pixel-office-modal px-4 py-2 text-sm text-[#cbd5e1]">
               {t('common.loading')}
             </div>
           </div>
@@ -1829,7 +1855,7 @@ export default function PixelOfficePage() {
         {broadcasts.length > 0 && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex flex-col gap-2 pointer-events-none">
             {broadcasts.map(b => (
-              <div key={b.id} className="px-4 py-2 rounded-full bg-black/70 text-white text-sm font-medium backdrop-blur-sm shadow-lg whitespace-nowrap"
+              <div key={b.id} className="pixel-office-tooltip px-4 py-2 text-sm font-medium text-[#fff5d8] whitespace-nowrap"
                 style={{ animation: 'broadcastIn 0.3s ease-out, broadcastOut 0.5s ease-in 4.5s forwards' }}>
                 {b.text}
               </div>
@@ -1843,14 +1869,14 @@ export default function PixelOfficePage() {
 
         {/* Reset view button */}
         <button onClick={resetView}
-          className="absolute top-3 right-3 px-2 py-1.5 text-xs rounded-lg border bg-[var(--card)]/80 border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-colors backdrop-blur-sm"
+          className="pixel-office-button pixel-office-button--muted absolute right-3 top-3 px-2 py-1.5 text-xs"
           title={t('pixelOffice.resetView')}>
           ⊡
         </button>
 
         {/* Agent hover tooltip */}
         {hoveredInfo && !isEditMode && !selectedAgentId && !isMobileViewport && (
-          <div className="absolute pointer-events-none z-10 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)]/95 backdrop-blur-sm text-xs shadow-lg"
+          <div className="pixel-office-tooltip absolute pointer-events-none z-10 px-3 py-2 text-xs text-[#ecfdf5]"
             style={{ left: Math.min(mousePosRef.current.x + 12, (containerRef.current?.clientWidth || 300) - 180), top: mousePosRef.current.y + 12 }}>
             {hoveredInfo.kind === 'gatewaySre' ? (
               <>
@@ -1895,8 +1921,8 @@ export default function PixelOfficePage() {
           </div>
         )}
 
-        {/* Server click tooltip */}
-        {serverTooltip.open && !isEditMode && !selectedAgentId && (() => {
+        {/* Server click tooltip — hidden in Star mode (SRE shown on canvas) */}
+        {serverTooltip.open && !isEditMode && !selectedAgentId && !starModeRef.current?.ready && (() => {
           const snapshot = gatewaySreRef.current
           const status = snapshot.status === 'healthy' || snapshot.status === 'degraded' || snapshot.status === 'down'
             ? snapshot.status
@@ -1947,14 +1973,13 @@ export default function PixelOfficePage() {
 
         {/* Agent detail card (click) */}
         {selectedAgentId && !isEditMode && (() => {
-          const runtimeAgent = agents.find(a => a.agentId === selectedAgentId)
-          const configAgent = configAgentsRef.current.get(selectedAgentId)
-          const stats = agentStatsRef.current.get(selectedAgentId) ?? configAgent?.session
-          const displayState = runtimeAgent?.state || 'offline'
           const gw = gatewayRef.current
+          const configAgent = configAgentsRef.current.get(selectedAgentId)
+          const runtimeAgent = agents.find((agent) => agent.agentId === selectedAgentId)
+          const stats = agentStatsRef.current.get(selectedAgentId)
+          if (!configAgent && !runtimeAgent) return null
 
-          if (!runtimeAgent && !configAgent) return null
-
+          const displayState = runtimeAgent?.state
           const cardAgent: AgentCardAgent = {
             id: selectedAgentId,
             name: configAgent?.name || runtimeAgent?.name || selectedAgentId,
@@ -2289,39 +2314,7 @@ export default function PixelOfficePage() {
           </div>
         )}
 
-        {/* Editor overlays */}
-        {isEditMode && (
-          <>
-            <EditActionBar
-              isDirty={editor.isDirty}
-              canUndo={editor.undoStack.length > 0}
-              canRedo={editor.redoStack.length > 0}
-              onUndo={handleUndo} onRedo={handleRedo}
-              onSave={handleSave} onReset={handleReset} />
-            <EditorToolbar
-              activeTool={editor.activeTool}
-              selectedTileType={editor.selectedTileType}
-              selectedFurnitureType={editor.selectedFurnitureType}
-              selectedFurnitureUid={editor.selectedFurnitureUid}
-              selectedFurnitureColor={selectedItem?.color ?? null}
-              floorColor={editor.floorColor}
-              wallColor={editor.wallColor}
-              onToolChange={handleToolChange}
-              onTileTypeChange={handleTileTypeChange}
-              onFloorColorChange={handleFloorColorChange}
-              onWallColorChange={handleWallColorChange}
-              onSelectedFurnitureColorChange={handleSelectedFurnitureColorChange}
-              onFurnitureTypeChange={handleFurnitureTypeChange}
-              onDeleteFurniture={() => {
-                const office = officeRef.current
-                const editor = editorRef.current
-                if (!office || !editor.selectedFurnitureUid) return
-                applyEdit(removeFurniture(office.layout, editor.selectedFurnitureUid))
-                editor.clearSelection()
-                forceEditorUpdate()
-              }} />
-          </>
-        )}
+        {/* Editor overlays removed — Star-Office mode always active */}
       </div>
     </div>
   )

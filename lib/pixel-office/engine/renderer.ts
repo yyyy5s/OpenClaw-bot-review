@@ -8,6 +8,8 @@ import { renderMatrixEffect } from './matrixEffect'
 import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles'
 import { hasWallSprites, getWallInstances, wallColorToHex } from '../wallTiles'
 import type { BugEntity } from '../bugs/types'
+import type { StarModeState } from './starOverlay'
+import { renderStarFrame } from './starOverlay'
 import { renderBugs } from '../bugs/renderer'
 import {
   CHARACTER_SITTING_OFFSET_PX,
@@ -1013,9 +1015,17 @@ export function renderFrame(
   contributions?: ContributionData,
   photograph?: HTMLImageElement,
   gatewayHealthy?: boolean,
+  starMode?: StarModeState | null,
 ): { offsetX: number; offsetY: number } {
   // Clear
   ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+
+  // Star-Office background mode (always active when ready)
+  if (starMode?.ready) {
+    const hasError = characters.some(c => !c.isCat && !c.isLobster && !c.isSystemRole && !c.isActive)
+    const hasSync = characters.some(c => c.isActive && c.state === CharacterState.TYPE)
+    return renderStarFrame(ctx, canvasWidth, canvasHeight, starMode, characters, hasError, hasSync)
+  }
 
   // Use layout dimensions (fallback to tileMap size)
   const cols = layoutCols ?? (tileMap.length > 0 ? tileMap[0].length : 0)

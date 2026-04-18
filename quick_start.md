@@ -13,6 +13,25 @@ npm install
 npm run dev
 ```
 
+## 2.1 HTTPS 反代 / 子路径部署
+如果你的公网反代不是直接挂在站点根路径，而是类似：
+```text
+https://example.com/openclaw
+```
+请在构建时传入子路径，避免 Next 静态资源、`/api/*` 和像素办公室图片音频全部错到根路径：
+
+```bash
+NEXT_BASE_PATH=/openclaw npm run build
+NEXT_BASE_PATH=/openclaw npm run start
+```
+
+Docker 构建时同样传入：
+
+```bash
+docker build --build-arg NEXT_BASE_PATH=/openclaw -t openclaw-dashboard .
+docker run -d -p 3000:3000 openclaw-dashboard
+```
+
 ## 3.通过skill安装
 ```
 npx clawhub install openclaw-bot-dashboard
@@ -48,6 +67,25 @@ git clone https://github.com/xmanrui/OpenClaw-bot-review.git
 cd OpenClaw-bot-review
 npm install
 npm run dev
+```
+
+## 2.1 HTTPS Reverse Proxy / Subpath Deploy
+If the public app is exposed under a subpath such as:
+```text
+https://example.com/openclaw
+```
+build with the same base path so Next chunks, `/api/*`, and Pixel Office media all resolve correctly:
+
+```bash
+NEXT_BASE_PATH=/openclaw npm run build
+NEXT_BASE_PATH=/openclaw npm run start
+```
+
+For Docker:
+
+```bash
+docker build --build-arg NEXT_BASE_PATH=/openclaw -t openclaw-dashboard .
+docker run -d -p 3000:3000 openclaw-dashboard
 ```
 
 ## 3. Install via Skill

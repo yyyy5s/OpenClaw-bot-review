@@ -6,6 +6,7 @@ import {
   NOTIFICATION_NOTE_DURATION_SEC,
   NOTIFICATION_VOLUME,
 } from './constants'
+import { withBasePath } from '@/lib/base-path'
 
 let soundEnabled = true
 let audioCtx: AudioContext | null = null
@@ -21,10 +22,10 @@ async function loadTracks(): Promise<void> {
   if (bgmTracksLoaded) return
   bgmTracksLoaded = true
   try {
-    const res = await fetch('/api/pixel-office/tracks')
+    const res = await fetch(withBasePath('/api/pixel-office/tracks'))
     const data = await res.json()
     if (Array.isArray(data.tracks) && data.tracks.length > 0) {
-      bgmTracks = data.tracks
+      bgmTracks = data.tracks.map((track: string) => withBasePath(track))
     }
   } catch {
     // fallback: keep empty, pickNextTrack handles it
@@ -32,7 +33,7 @@ async function loadTracks(): Promise<void> {
 }
 
 function pickNextTrack(): string {
-  if (bgmTracks.length === 0) return '/assets/pixel-office/pixel-adventure.mp3'
+  if (bgmTracks.length === 0) return withBasePath('/assets/pixel-office/pixel-adventure.mp3')
   if (bgmTracks.length === 1) return bgmTracks[0]
   let idx: number
   do { idx = Math.floor(Math.random() * bgmTracks.length) } while (idx === bgmLastIndex)

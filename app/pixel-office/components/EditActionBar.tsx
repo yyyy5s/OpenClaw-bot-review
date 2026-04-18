@@ -13,13 +13,14 @@ interface EditActionBarProps {
 }
 
 const barBtnStyle: React.CSSProperties = {
-  padding: '3px 10px',
+  padding: '4px 12px',
   fontSize: '12px',
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: 'rgba(255, 255, 255, 0.7)',
-  border: '2px solid #4a4a6a',
+  background: '#1f2937',
+  color: 'rgba(243, 255, 230, 0.84)',
+  border: '2px solid rgba(148, 163, 184, 0.28)',
   borderRadius: 0,
   cursor: 'pointer',
+  boxShadow: 'inset 0 -2px 0 rgba(0, 0, 0, 0.22)',
 }
 
 const disabledBtnStyle: React.CSSProperties = {
@@ -36,9 +37,9 @@ export function EditActionBar({ isDirty, canUndo, canRedo, onUndo, onRedo, onSav
   return (
     <div style={{
       position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 50,
-      background: '#1e1e2e', border: '2px solid #4a4a6a', borderRadius: 0,
-      padding: '4px 8px', display: 'flex', gap: 4,
-      boxShadow: '2px 2px 0px #0a0a14',
+      background: '#141722', border: '4px solid #0e1119', borderRadius: 0,
+      padding: '6px 10px', display: 'flex', gap: 4,
+      boxShadow: '0 0 0 2px rgba(100, 71, 125, 0.3), 0 12px 24px rgba(3, 6, 20, 0.3)',
     }}>
       <button style={canUndo ? barBtnStyle : disabledBtnStyle} onClick={onUndo} disabled={!canUndo} title="Ctrl+Z">
         {t('pixelOffice.undo')}
@@ -48,7 +49,7 @@ export function EditActionBar({ isDirty, canUndo, canRedo, onUndo, onRedo, onSav
       </button>
       {isDirty && (
         <>
-          <button style={{ ...barBtnStyle, background: 'rgba(90, 140, 255, 0.25)', border: '2px solid #5a8cff' }} onClick={onSave}>
+          <button style={{ ...barBtnStyle, background: 'rgba(120, 163, 64, 0.2)', border: '2px solid rgba(143, 190, 74, 0.82)', color: '#f3ffe6' }} onClick={onSave}>
             {t('pixelOffice.save')}
           </button>
           <button style={barBtnStyle} onClick={onReset}>

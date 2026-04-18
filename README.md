@@ -95,6 +95,22 @@ docker run -d -p 3000:3000 openclaw-dashboard
 docker run -d --name openclaw-dashboard -p 3000:3000 -e OPENCLAW_HOME=/opt/openclaw -v /path/to/openclaw:/opt/openclaw openclaw-dashboard
 ```
 
+### HTTPS Reverse Proxy / Subpath
+
+If you expose the dashboard behind HTTPS under a subpath, for example `https://example.com/openclaw`, build with the same base path so Next chunks, `/api/*`, and Pixel Office assets are generated with the correct prefix:
+
+```bash
+NEXT_BASE_PATH=/openclaw npm run build
+NEXT_BASE_PATH=/openclaw npm run start
+```
+
+Docker build example:
+
+```bash
+docker build --build-arg NEXT_BASE_PATH=/openclaw -t openclaw-dashboard .
+docker run -d -p 3000:3000 openclaw-dashboard
+```
+
 ---
 
 # OpenClaw Bot Dashboard（中文）

@@ -274,7 +274,7 @@ function SessionList({ agentId }: { agentId: string }) {
           <button
             onClick={testAllSessions}
             disabled={testingAll}
-            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
+            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
           >
             {testingAll ? t("sessions.testingAll") : t("sessions.testAll")}
           </button>

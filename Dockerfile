@@ -3,6 +3,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+ARG NEXT_BASE_PATH=""
+ENV NEXT_BASE_PATH=${NEXT_BASE_PATH}
+
 COPY . .
 RUN npm install && npm run build
 
@@ -11,7 +14,9 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
+ARG NEXT_BASE_PATH=""
 ENV NODE_ENV=production
+ENV NEXT_BASE_PATH=${NEXT_BASE_PATH}
 
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./

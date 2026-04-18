@@ -49,14 +49,12 @@ export function useTheme() {
 }
 
 export function ThemeSwitcher() {
-  const { theme, toggleTheme } = useTheme();
   return (
-    <button
-      onClick={toggleTheme}
-      className="px-2 py-1.5 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm hover:border-[var(--accent)] transition cursor-pointer"
-      title={theme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+    <span
+      className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--accent)] select-none"
+      title="Star-Office 暗色主题"
     >
-      {theme === "dark" ? "☀️" : "🌙"}
-    </button>
+      🌙
+    </span>
   );
 }
