@@ -85,6 +85,13 @@ You can also deploy the dashboard using Docker:
 docker build -t openclaw-dashboard .
 ```
 
+If you deploy without Docker and start the standalone server directly, use the repository helper below. It ensures `.next/static` and `public` are copied into `.next/standalone` so `/_next/static/*` assets do not 404:
+
+```bash
+npm run build
+npm run start:standalone
+```
+
 ### Run Container
 
 ```bash

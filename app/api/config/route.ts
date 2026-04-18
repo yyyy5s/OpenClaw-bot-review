@@ -262,8 +262,15 @@ export async function GET() {
   }
 
   try {
-    const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-    const config = JSON.parse(raw);
+    let config: any = {};
+    try {
+      const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
+      config = JSON.parse(raw);
+    } catch (error: any) {
+      if (error?.code !== "ENOENT") {
+        throw error;
+      }
+    }
 
     // 提取 agents 信息
     const defaults = config.agents?.defaults || {};
