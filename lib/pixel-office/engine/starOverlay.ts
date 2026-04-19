@@ -26,9 +26,9 @@ const AREA_POSITIONS: Record<string, Array<{ x: number; y: number }>> = {
     { x: 650, y: 160 }, { x: 580, y: 200 },
   ],
   writing: [
-    { x: 760, y: 320 }, { x: 830, y: 280 }, { x: 690, y: 350 },
-    { x: 770, y: 260 }, { x: 850, y: 340 }, { x: 720, y: 300 },
-    { x: 800, y: 370 }, { x: 750, y: 240 },
+    { x: 340, y: 420 }, { x: 400, y: 390 }, { x: 280, y: 450 },
+    { x: 360, y: 370 }, { x: 420, y: 440 }, { x: 310, y: 400 },
+    { x: 380, y: 460 }, { x: 340, y: 360 },
   ],
   error: [
     { x: 180, y: 260 }, { x: 120, y: 220 }, { x: 240, y: 230 },
@@ -240,9 +240,10 @@ function drawSheetFrame(
   )
 }
 
-/** Map a character's state to Star-Office area name */
+/** Map a character's state to Star-Office area name.
+ *  In Star mode we only care about isActive, not tile-engine walk state. */
 function agentArea(ch: Character): string {
-  if (ch.isActive && (ch.state === CharacterState.TYPE || ch.state === CharacterState.WALK)) {
+  if (ch.isActive) {
     return 'writing'
   }
   return 'breakroom'
@@ -352,13 +353,14 @@ export function renderStarFrame(
   // ── 9. Star working at desk (depth 900) ───────────────────
   // Render the first active agent as the "Star" character sprite at the desk
   const mainAgent = findMainAgent(characters)
-  if (mainAgent && mainAgent.isActive) {
+  const hasAnyNormalAgent = characters.some(c => !c.isCat && !c.isLobster && !c.isSystemRole && !c.isSubagent)
+  if (mainAgent) {
     drawFurnitureSheet(ctx, star, 'star_working',
       FURNITURE_LAYOUT.starWorking.x, FURNITURE_LAYOUT.starWorking.y,
       FURNITURE_LAYOUT.starWorking.originX, FURNITURE_LAYOUT.starWorking.originY, time,
       FURNITURE_LAYOUT.starWorking.scale)
-  } else {
-    // Show star idle animation in breakroom area (depth 20)
+  } else if (!hasAnyNormalAgent) {
+    // Only show star_idle when no agents at all (empty office)
     drawFurnitureSheet(ctx, star, 'star_idle',
       620, 200, 0.5, 0.5, time)
   }
@@ -458,15 +460,11 @@ function drawStaticSheet(
 }
 
 function findMainAgent(characters: Character[]): Character | null {
-  // First active agent is the "Star"
+  // Only pick an actively working agent as the "Star" at the desk.
+  // If nobody is working, nobody sits at the desk — no fallback.
   for (const ch of characters) {
     if (ch.isCat || ch.isLobster || ch.isSystemRole || ch.isSubagent) continue
     if (ch.isActive) return ch
-  }
-  // Fallback to first normal agent
-  for (const ch of characters) {
-    if (ch.isCat || ch.isLobster || ch.isSystemRole || ch.isSubagent) continue
-    return ch
   }
   return null
 }
@@ -492,16 +490,16 @@ function renderStarAgent(
 
   // Use animated spritesheet for active agents if available
   const animImg = guestAnims.length > 0 ? guestAnims[roleIdx % guestAnims.length] : null
+  const SPRITE_SCALE = 2.0 * sizeMul  // 32px × 2.0 = 64px display (fits nicely in 1280×720)
   if (isActive && animImg) {
     // guest_anim_N.webp: 32×32 frames, 8 frames, horizontal strip
     const animFrameW = 32
     const animFrameH = 32
     const totalFrames = 8
-    const fps = 8
+    const fps = 4  // gentle pace, not frenetic
     const frame = Math.floor(time * fps) % totalFrames
-    const scale = 3.2 * sizeMul
-    const dw = animFrameW * scale
-    const dh = animFrameH * scale
+    const dw = animFrameW * SPRITE_SCALE
+    const dh = animFrameH * SPRITE_SCALE
     ctx.drawImage(
       animImg,
       frame * animFrameW, 0, animFrameW, animFrameH,
@@ -514,16 +512,15 @@ function renderStarAgent(
       const frameW = 32
       const frameH = 32
       const frame = isActive ? 1 : 0
-      const scale = 3.2 * sizeMul  // 32px × 3.2 = ~102px display
-      const dw = frameW * scale
-      const dh = frameH * scale
+      const dw = frameW * SPRITE_SCALE
+      const dh = frameH * SPRITE_SCALE
       ctx.drawImage(
         roleImg,
         frame * frameW, 0, frameW, frameH,
         x - dw / 2, y - dh / 2, dw, dh,
       )
     } else {
-      ctx.font = '32px serif'
+      ctx.font = '20px serif'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText('⭐', x, y)
@@ -535,11 +532,15 @@ function renderStarAgent(
   // Floating bounce animation
   const bounce = Math.sin(time * 2 + ch.id * 1.3) * 3
 
-  // Subagent laptop indicator
+  // Subagent laptop indicator (pixel art, no emoji)
   if (isSub) {
-    ctx.font = '14px serif'
-    ctx.textAlign = 'center'
-    ctx.fillText('💻', x - 26, y - 28 + bounce)
+    const lx = x - 22, ly = y - 22 + bounce
+    ctx.fillStyle = '#555'
+    ctx.fillRect(lx, ly, 10, 7)     // screen
+    ctx.fillStyle = '#4ade80'
+    ctx.fillRect(lx + 1, ly + 1, 8, 5)  // screen face
+    ctx.fillStyle = '#777'
+    ctx.fillRect(lx - 1, ly + 7, 12, 2)  // keyboard
   }
 
   // Status dot (subagents use red, normal agents green/gray)
@@ -548,7 +549,7 @@ function renderStarAgent(
     : (isActive ? '#22c55e' : '#94a3b8')
   ctx.fillStyle = dotColor
   ctx.beginPath()
-  ctx.arc(x + 28 * sizeMul, y - 38 * sizeMul + bounce, 5, 0, Math.PI * 2)
+  ctx.arc(x + 20 * sizeMul, y - 26 * sizeMul + bounce, 4, 0, Math.PI * 2)
   ctx.fill()
   ctx.strokeStyle = '#000'
   ctx.lineWidth = 1.5
@@ -566,7 +567,7 @@ function renderStarAgent(
   const tagW = metrics.width + padX * 2
   const tagH = 18
   const tagX = x - tagW / 2
-  const tagY = y - 56 * sizeMul + bounce
+  const tagY = y - 40 * sizeMul + bounce
 
   // Tag background — pixel dark style
   ctx.fillStyle = 'rgba(0,0,0,0.85)'
@@ -645,15 +646,15 @@ function renderStarSRE(
   const roleIdx = 0  // guest_role_1 (blue) for contrast against red server LEDs
   const roleImg = guestRoles[roleIdx]
   if (roleImg) {
-    const frameW = 32, frameH = 32, scale = 3.2  // 32px × 3.2 = ~102px
+    const frameW = 32, frameH = 32, scale = 2.0  // 32px × 2.0 = 64px
     const dw = frameW * scale, dh = frameH * scale
     ctx.drawImage(roleImg, 0, 0, frameW, frameH, x - dw / 2, y - dh / 2, dw, dh)
   }
 
   const bounce = Math.sin(time * 1.5) * 3
 
-  // Pixel-art monitor icon (instead of emoji which renders badly on canvas)
-  const mx = x - 36, my = y - 34 + bounce
+  // Pixel-art monitor icon
+  const mx = x - 26, my = y - 24 + bounce
   ctx.fillStyle = '#333'
   ctx.fillRect(mx, my, 16, 12)          // screen body
   ctx.fillStyle = statusColor
@@ -674,7 +675,7 @@ function renderStarSRE(
   ctx.globalAlpha = dotAlpha
   ctx.fillStyle = statusColor
   ctx.beginPath()
-  ctx.arc(x + 30, y - 40 + bounce, 6, 0, Math.PI * 2)
+  ctx.arc(x + 22, y - 28 + bounce, 5, 0, Math.PI * 2)
   ctx.fill()
   ctx.strokeStyle = '#000'
   ctx.lineWidth = 1.5
@@ -691,7 +692,7 @@ function renderStarSRE(
   const tagW = metrics.width + padX * 2
   const tagH = 18
   const tagX = x - tagW / 2
-  const tagY = y - 58 + bounce
+  const tagY = y - 42 + bounce
 
   // Dark pixel tag with status-colored border
   ctx.fillStyle = 'rgba(0,0,0,0.85)'
